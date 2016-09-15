@@ -47,12 +47,13 @@ controller.on('direct_message', (bot, message) => {
 
         if (result.users.length == 0) {
           convo.say('I\'m sorry, I can\'t find anybody who might be able to help');
-          convo.next();
         } else {
           convo.say('I may have found somebody who can help - let me check if they are available');
-
-          convo.next();
+          //need to find a way to invite additional users to the conversation.
+          //convo.say(`Paging <@U10UXQ66L>, <@U1SKL4B42>, and <@U1HFBD52N> - can any of you help <@${message.user}> with the following...`);
         }
+
+        convo.next();
       });
     }).on('error', (e) => {
       console.error('Failed to connect to social-search API', e);
