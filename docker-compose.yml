@@ -1,0 +1,18 @@
+version: '2'
+
+services:
+    bot:
+        build: .
+        image: knowbot
+        expose:
+            - "${PORT}"
+        volumes:
+            - ./json_db:/opt/bot/json_db
+        environment:
+            - PORT
+            - TOKEN
+            - CLIENT_ID
+            - CLIENT_SECRET
+            - PAGE_TOKEN
+            - VERIFY_TOKEN
+            - BOT_PLATFORM

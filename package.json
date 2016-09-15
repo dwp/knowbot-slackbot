@@ -1,0 +1,16 @@
+{
+  "name": "knowbot",
+  "version": "0.0.1",
+  "description": "A Slack bot that can be asked questions, and if it doesn't know the answer, will find somebody who does!",
+  "author": "Steven Bakhtiari",
+  "license": "MIT",
+  "main": "src/knowbot.js",
+  "dependencies": {
+    "botkit": "0.2.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "node src/knowbot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
