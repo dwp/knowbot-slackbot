@@ -33,7 +33,7 @@ function initCallback(bot) {
 
 // Respond to messages directed at the bot containing 'ping'
 controller.hears(
-    'ping',
+    '^ping$',
     ['direct_message', 'mention', 'direct_mention'],
     (bot, message) => bot.reply(message, 'pong'));
 
