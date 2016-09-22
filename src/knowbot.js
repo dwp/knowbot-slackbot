@@ -54,8 +54,7 @@ controller.on('direct_message', (bot, message) => {
             result.users = result.users.filter(user => user.user_id != message.user).map(user => user.user_id).slice(0, 3);
 
             if (result.users.length == 0) {
-                convoWithAsker.say('I\'m sorry, I can\'t find anybody who might be able to help :flushed:');
-                convoWithAsker.next();
+                bot.reply(message, 'I\'m sorry, I can\'t find anybody who might be able to help :flushed:');
                 return;
             }
 
