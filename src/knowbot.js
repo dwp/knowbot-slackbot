@@ -5,8 +5,8 @@ const SLACK_CI = 'slack_ci';
 const SOCIAL_SEARCH_URI = process.env.SOCIAL_SEARCH_API || 'http://localhost:8080';
 const platforms = [SLACK_APP, SLACK_CI];
 const config = {
-    debug: true,
-    json_file_store: 'json_db'
+  debug: true,
+  json_file_store: 'json_db'
 };
 
 const controller = (() => {
@@ -39,30 +39,105 @@ controller.hears(
 
 
 controller.on('direct_message', (bot, message) => {
-    // use say to force the response to go out instantly rather than waiting to batch in reply.
-    bot.say({
-        'text': 'Hi - thanks for your query. I will attempt to find the most appropriate people to help!',
-        'channel': message.channel
-    });
+    var asker = message.user;
+    var question = message.text;
 
-    http.get(SOCIAL_SEARCH_URI + `/ask?q=${message.text}`, (response) => {
+    bot.reply(message, 'Hi - thanks for your query. I will attempt to find somebody who can help!');
+
+    http.get(`${SOCIAL_SEARCH_URI}/ask?q=${question}`, (response) => {
         console.log('response code: ' + response.statusCode);
         response.on('data', (raw) => {
             console.log('data: ' + raw);
             var result = JSON.parse(raw);
-            // remove the user asking the question from the response if present & limit to top three
-            result.users = result.users.filter(user => {
-                console.log(`Filtering users: comparing ${user.user_id} with ${message.user}.`);
-                return user.user_id != message.user;
-            }).slice(0,3);
+
+            // remove the user asking the question from the response if present & limit to top three user IDs
+            result.users = result.users.filter(user => user.user_id != message.user).map(user => user.user_id).slice(0, 3);
+
             if (result.users.length == 0) {
-                bot.reply(message, 'I\'m sorry, I can\'t find anybody who might be able to help');
-            } else {
-                //convo.say('I may have found somebody who can help - let me check if they are available');
-                //need to find a way to invite additional users to the conversation.
-                //convo.say(`Paging <@U10UXQ66L>, <@U1SKL4B42>, and <@U1HFBD52N> - can any of you help <@${message.user}> with the following...`);
-                bot.reply(message, `I have found the following users who may be able to help you: ${result.users.map(user => `<@${user.user_id}>`).join(', ')}.`)
+                convoWithAsker.say('I\'m sorry, I can\'t find anybody who might be able to help :flushed:');
+                convoWithAsker.next();
+                return;
             }
+
+            console.log(`Found the following users to contact: ${result.users.join(', ')}.`);
+
+            // start conversation with each of the found users, asking if they're available to answer a question
+
+            result.users.forEach((userId) => {
+                console.log(`starting private message with user: ${userId}`);
+                bot.startPrivateConversation({user: userId}, (error, convo) => {
+                    convo.ask(`Hi! <@${asker}> has a query that I think you may be able to answer. Do you have time to help?`, [
+                        {
+                            pattern: bot.utterances.no,
+                            callback: (response, convo) => {
+                                console.log(`User ${response.user} not available to answer at this time.`);
+                                convo.say('Ok, no problem. Maybe next time!');
+                                convo.next();
+                            }
+                        },
+                        {
+                            pattern: bot.utterances.yes,
+                            callback: (response, convo) => {
+                                console.log(`User ${response.user} is available to answer the question.`);
+                                convo.ask({
+                                    attachments: [
+                                        {
+                                            fallback: `Question from ${asker}`,
+                                            pretext: "Thanks! Here's the question. If you have an answer, please respond here.",
+                                            author_name: asker,
+                                            text: question
+                                        }
+                                    ]
+                                }, (response, convo) => {
+                                    var answer = response.text;
+                                    var responderId = response.user;
+
+                                    console.log(`An answer has been provided by user ${responderId}`);
+                                    convo.say(`Thanks for providing an answer. I'll pass it on to <@${asker}>.`);
+                                    convo.next();
+
+                                    // start private conversation with the original asker of the question
+                                    bot.startPrivateConversation({user: asker}, (error, convoWithAsker) => {
+                                        convoWithAsker.say({
+                                            attachments: [
+                                                {
+                                                    fallback: `Answer from ${responderId}`,
+                                                    pretext: "Here's one answer to your question.",
+                                                    author_name: responderId,
+                                                    text: answer
+                                                }
+                                            ]
+                                        });
+
+                                        convoWithAsker.ask('Was this answer helpful?', [
+                                            {
+                                                pattern: bot.utterances.no,
+                                                callback: (response, convo) => {
+                                                    convo.say('Oh dear... sorry about that!');
+                                                    convo.next();
+                                                }
+                                            },
+                                            {
+                                                pattern: bot.utterances.yes,
+                                                callback: (response, convo) => {
+                                                    convo.say('Fantastic!');
+                                                    convo.next();
+
+                                                    // record the question and answer somewhere
+                                                }
+                                            }
+                                        ]);
+
+                                        convoWithAsker.next();
+                                    });
+                                });
+
+                                convo.next();
+                            }
+                        }
+                    ]);
+                });
+            });
         });
     }).on('error', (e) => {
         console.error('Failed to connect to social-search API', e);
