@@ -100,7 +100,7 @@ function forwardQuestionToUsers(bot, message) {
 
                                 forwardAnswerToAsker(bot)(asker, responder, answer);
                             });
-                            
+
                             convo.next();
                         }
                     }
@@ -120,9 +120,9 @@ function forwardAnswerToAsker(bot) {
             convo.say({
                 attachments: [
                     {
-                        fallback: `Answer from ${responder}`,
+                        fallback: `Answer from <@${responder}>`,
                         pretext: "Here's one answer to your question.",
-                        author_name: responder,
+                        author_name: `<@${responder}>`,
                         text: answer
                     }
                 ]
