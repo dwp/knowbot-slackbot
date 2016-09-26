@@ -1,5 +1,6 @@
 
 const http = require('http');
+const uuid = require('node-uuid');
 const SLACK_APP = 'slack_app';
 const SLACK_CI = 'slack_ci';
 const SOCIAL_SEARCH_URI = process.env.SOCIAL_SEARCH_API || 'http://localhost:8080';
@@ -32,21 +33,21 @@ function initCallback(bot) {
 
 /**
  * Accept the ID of the user asking a question, the text of the question
- * and a callback of type function(asker, question, users) where `users` is an array
+ * and a callback of type function(askedBy, question, users) where `users` is an array
  * of user IDs that have been found who may be able to answer the question.
  */
-function findUsers(asker, question, callback) {
+function findUsers(askedBy, question, callback) {
     http.get(`${SOCIAL_SEARCH_URI}/ask?q=${question}`, (response) => {
         console.log('response code: ' + response.statusCode);
         response.on('data', (raw) => {
             console.log('data: ' + raw);
             var result = JSON.parse(raw);
-            var users = result.users.filter(user => user.user_id != asker).map(user => user.user_id).slice(0, 3);
-            callback(asker, question, users);
+            var users = result.users.filter(user => user.user_id != askedBy).map(user => user.user_id).slice(0, 3);
+            callback(askedBy, question, users);
         });
-    }).on('error', (e) => {
-        console.error('Failed to connect to social-search API', e);
-        callback(asker, question, []);
+    }).on('error', (error) => {
+        console.error('Failed to connect to social-search API', error);
+        callback(askedBy, question, []);
     });
 }
 
@@ -56,7 +57,7 @@ function findUsers(asker, question, callback) {
  * relevant knowledge to answer it.
  */
 function forwardQuestionToUsers(bot, message) {
-    return function (asker, question, users) {
+    return function (askedBy, question, users) {
         if (users.length == 0) {
             bot.reply(message, 'I\'m sorry, I can\'t find anybody who can help :flushed:');
             return;
@@ -68,7 +69,7 @@ function forwardQuestionToUsers(bot, message) {
             console.log(`starting private message with user: ${userId}`);
             bot.startPrivateConversation({user: userId}, (error, convo) => {
                 // beginning of private conversation with user who might be able to answer question
-                convo.ask(`Hi! <@${asker}> has a question that I think you may be able to answer. Do you have time to help?`, [
+                convo.ask(`Hi! <@${askedBy}> has a question that I think you may be able to answer. Do you have time to help?`, [
                     {
                         pattern: bot.utterances.no,
                         callback: (response, convo) => {
@@ -84,21 +85,21 @@ function forwardQuestionToUsers(bot, message) {
                             convo.ask({
                                 attachments: [
                                     {
-                                        fallback: `Question from <@${asker}>`,
+                                        fallback: `Question from <@${askedBy}>`,
                                         pretext: "Thanks! Here's the question. If you have an answer, please respond here.",
-                                        author_name: `<@${asker}>`,
+                                        author_name: `<@${askedBy}>`,
                                         text: question
                                     }
                                 ]
                             }, (response, convo) => {
                                 var answer = response.text;
-                                var responder = response.user;
+                                var answeredBy = response.user;
 
-                                console.log(`An answer has been provided by user ${responder}`);
-                                convo.say(`Thanks for providing an answer. I'll pass it on to <@${asker}>.`);
+                                console.log(`An answer has been provided by user ${answeredBy}`);
+                                convo.say(`Thanks for providing an answer. I'll pass it on to <@${askedBy}>.`);
                                 convo.next();
 
-                                forwardAnswerToAsker(bot)(asker, responder, answer);
+                                forwardAnswerToAsker(bot, message)(askedBy, question, answeredBy, answer);
                             });
 
                             convo.next();
@@ -114,15 +115,15 @@ function forwardQuestionToUsers(bot, message) {
  * Curried function that returns a function with access to a bot that
  * forwards an answer back to the user that asked the question.
  */
-function forwardAnswerToAsker(bot) {
-    return function (asker, responder, answer) {
-        bot.startPrivateConversation({user: asker}, (error, convo) => {
+function forwardAnswerToAsker(bot, message) {
+    return function (askedBy, question, answeredBy, answer) {
+        bot.startPrivateConversation({user: askedBy}, (error, convo) => {
             convo.say({
                 attachments: [
                     {
-                        fallback: `Answer from <@${responder}>`,
+                        fallback: `Answer from <@${answeredBy}>`,
                         pretext: "Here's one answer to your question.",
-                        author_name: `<@${responder}>`,
+                        author_name: `<@${answeredBy}>`,
                         text: answer
                     }
                 ]
@@ -134,6 +135,12 @@ function forwardAnswerToAsker(bot) {
                     callback: (response, convo) => {
                         convo.say('Oh dear... sorry about that!');
                         convo.next();
+                        // No need to expand this for now... keep the interactions simple
+                        // just to demonstrate the concept. In reality, the bot could ask
+                        // the user to elaborate and go back to the person who answered the
+                        // question. Or it could record how useful the answer was and use that
+                        // information in the future to better gauge the user's knowledge on
+                        // a given topic. Lots of directions this could be taken in.
                     }
                 },
                 {
@@ -141,7 +148,21 @@ function forwardAnswerToAsker(bot) {
                     callback: (response, convo) => {
                         convo.say('Fantastic! Glad I could help.');
                         convo.next();
-                        // record the question and answer somewhere
+
+                        var recordId = uuid.v1();
+                        console.log(`Persisting question & answer pair against ID: ${recordId}`);
+                        controller.storage.teams.save({
+                            id: message.team,
+                            [recordId]: {
+                                "question": question,
+                                "answer": answer,
+                                "asked_by": askedBy,
+                                "answered_by": answeredBy
+                            }
+                        }, (error) => {
+                            if (error)
+                                console.error("Failed to persist question & answer pair!", error);
+                        });
                     }
                 }
             ]);
@@ -157,10 +178,6 @@ controller.hears('^ping$', ['direct_message'], (bot, message) => bot.reply(messa
 
 // Accept a question, forward it on to other users, and return the answer to the user
 controller.on('direct_message', (bot, message) => {
-    var asker = message.user;
-    var question = message.text;
-
     bot.reply(message, 'Hi - thanks for your query. I will attempt to find somebody who can help!');
-
-    findUsers(asker, question, forwardQuestionToUsers(bot, message));
+    findUsers(message.user, message.text, forwardQuestionToUsers(bot, message));
 });
