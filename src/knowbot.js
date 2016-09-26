@@ -149,19 +149,23 @@ function forwardAnswerToAsker(bot, message) {
                         convo.say('Fantastic! Glad I could help.');
                         convo.next();
 
+                        var teamId = message.team;
                         var recordId = uuid.v1();
-                        console.log(`Persisting question & answer pair against ID: ${recordId}`);
-                        controller.storage.teams.save({
-                            id: message.team,
-                            [recordId]: {
+                        controller.storage.teams.get(message.team, (error, data) => {
+                            if (error) {
+                                console.error(`No existing data, or failed to load team data for '${teamId}'`);
+                                data = { id: teamId };
+                            }
+                            console.log(`Persisting question & answer pair against ID: ${recordId}`);
+                            data[recordId] = {
                                 "question": question,
                                 "answer": answer,
                                 "asked_by": askedBy,
                                 "answered_by": answeredBy
-                            }
-                        }, (error) => {
-                            if (error)
-                                console.error("Failed to persist question & answer pair!", error);
+                            };
+                            controller.storage.teams.save(data, (error) => {
+                                if (error) console.error("Failed to persist question & answer pair!", error);
+                            });
                         });
                     }
                 }
