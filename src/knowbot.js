@@ -26,8 +26,8 @@ const controller = (() => {
 
 function initCallback(bot) {
     // do stuff here
+    console.log(bot.team_info.id);
 }
-
 
 // ================= Bot logic goes below =================
 
@@ -36,8 +36,8 @@ function initCallback(bot) {
  * and a callback of type function(askedBy, question, users) where `users` is an array
  * of user IDs that have been found who may be able to answer the question.
  */
-function findUsers(askedBy, question, callback) {
-    http.get(`${SOCIAL_SEARCH_URI}/ask?q=${question}`, (response) => {
+function findUsers(team, askedBy, question, callback) {
+    http.get(`${SOCIAL_SEARCH_URI}/ask?q=${question}&team=${team}`, (response) => {
         console.log('response code: ' + response.statusCode);
         response.on('data', (raw) => {
             console.log('data: ' + raw);
@@ -183,5 +183,6 @@ controller.hears('^ping$', ['direct_message'], (bot, message) => bot.reply(messa
 // Accept a question, forward it on to other users, and return the answer to the user
 controller.on('direct_message', (bot, message) => {
     bot.reply(message, 'Hi - thanks for your query. I will attempt to find somebody who can help!');
-    findUsers(message.user, message.text, forwardQuestionToUsers(bot, message));
+    console.log(message);
+    findUsers(message.team, message.user, message.text, forwardQuestionToUsers(bot, message));
 });
