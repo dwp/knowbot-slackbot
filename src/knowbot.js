@@ -26,7 +26,6 @@ const controller = (() => {
 
 function initCallback(bot) {
     // do stuff here
-    console.log(bot.team_info.id);
 }
 
 // ================= Bot logic goes below =================
