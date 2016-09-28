@@ -1,13 +1,15 @@
-
-const http = require('http');
-const uuid = require('node-uuid');
 const SLACK_APP = 'slack_app';
 const SLACK_CI = 'slack_ci';
-const SOCIAL_SEARCH_URI = process.env.SOCIAL_SEARCH_API || 'http://localhost:8080';
 const platforms = [SLACK_APP, SLACK_CI];
+const SOCIAL_SEARCH_URI = process.env.SOCIAL_SEARCH_API || 'http://localhost:8080';
+const MONGO_DB_URI = process.env.MONGO_DB_URI || 'mongodb://localhost:27017';
+
+const http = require('http');
+const mongoStorage = require('botkit-storage-mongo')({ mongoUri: MONGO_DB_URI });
+
 const config = {
   debug: true,
-  json_file_store: 'json_db'
+  storage: mongoStorage
 };
 
 const controller = (() => {
@@ -149,19 +151,24 @@ function forwardAnswerToAsker(bot, message) {
                         convo.next();
 
                         var teamId = message.team;
-                        var recordId = uuid.v1();
-                        controller.storage.teams.get(message.team, (error, data) => {
-                            if (error) {
+                        console.log(`Persisting question and answer for team '${teamId}'`);
+
+                        controller.storage.teams.get(teamId, (error, data) => {
+                            if (error || data == null) {
                                 console.error(`No existing data, or failed to load team data for '${teamId}'`);
                                 data = { id: teamId };
                             }
-                            console.log(`Persisting question & answer pair against ID: ${recordId}`);
-                            data[recordId] = {
+
+                            if (!Array.isArray(data.questionsanswers))
+                                data.questionsanswers = [];
+
+                            data.questionsanswers.push({
                                 "question": question,
                                 "answer": answer,
                                 "asked_by": askedBy,
                                 "answered_by": answeredBy
-                            };
+                            });
+
                             controller.storage.teams.save(data, (error) => {
                                 if (error) console.error("Failed to persist question & answer pair!", error);
                             });
