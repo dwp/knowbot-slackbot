@@ -1,6 +1,6 @@
 {
   "name": "knowbot",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A Slack bot that can be asked questions, and if it doesn't know the answer, will find somebody who does!",
   "author": "Steven Bakhtiari",
   "license": "MIT",

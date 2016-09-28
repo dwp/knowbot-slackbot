@@ -15,6 +15,7 @@ module.exports = {
         const port = process.env.PORT || 8080;
         const clientId = process.env.CLIENT_ID;
         const clientSecret = process.env.CLIENT_SECRET;
+        const redirectUri = process.env.REDIRECT_URI;
 
         if (!clientId || !clientSecret) {
             handleError('Both the CLIENT_ID and CLIENT_SECRET environment variables must be set!');
@@ -23,6 +24,7 @@ module.exports = {
         const controller = Botkit.slackbot(config).configureSlackApp({
             clientId: clientId,
             clientSecret: clientSecret,
+            redirectUri: redirectUri,
             scopes: config.scopes || []
         });
 

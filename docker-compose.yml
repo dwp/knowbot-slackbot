@@ -11,6 +11,7 @@ services:
             - TOKEN
             - CLIENT_ID
             - CLIENT_SECRET
+            - REDIRECT_URI
             - PAGE_TOKEN
             - VERIFY_TOKEN
             - BOT_PLATFORM
