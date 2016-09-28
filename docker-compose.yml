@@ -14,5 +14,5 @@ services:
             - PAGE_TOKEN
             - VERIFY_TOKEN
             - BOT_PLATFORM
-            - SOCIAL_SEARCH_URI
+            - SOCIAL_SEARCH_API
             - MONGO_DB_URI

@@ -1,7 +1,7 @@
 const SLACK_APP = 'slack_app';
 const SLACK_CI = 'slack_ci';
 const platforms = [SLACK_APP, SLACK_CI];
-const SOCIAL_SEARCH_URI = process.env.SOCIAL_SEARCH_API || 'http://localhost:8080';
+const SOCIAL_SEARCH_API = process.env.SOCIAL_SEARCH_API || 'http://localhost:8080';
 const MONGO_DB_URI = process.env.MONGO_DB_URI || 'mongodb://localhost:27017';
 
 const http = require('http');
@@ -38,7 +38,7 @@ function initCallback(bot) {
  * of user IDs that have been found who may be able to answer the question.
  */
 function findUsers(team, askedBy, question, callback) {
-    http.get(`${SOCIAL_SEARCH_URI}/ask?q=${question}&team=${team}`, (response) => {
+    http.get(`${SOCIAL_SEARCH_API}/ask?q=${question}&team=${team}`, (response) => {
         console.log('response code: ' + response.statusCode);
         response.on('data', (raw) => {
             console.log('data: ' + raw);
