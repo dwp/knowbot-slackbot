@@ -11,6 +11,8 @@ The bot requires a running instance of the Social Search API and will also need 
 
 If running the bot using Docker with the provided Dockerfile and Docker Compose config file, Tokens or OAuth ID & secrets should be configured in the `.env` file. The URI for the Social Search API should also be configured, or the application will default to `localhost:8080`.
 
+If connecting the bot via a Slack app, you will need to use OAuth to connect the bot to a specific team instance. This will require `BOT_PLATFORM` variable in the `.env` file to be set to `slack_app`, in addition to providing the `CLIENT_ID` and `CLIENT_SECRET` variables. Once the bot has been started, navigate to `/login`, which will redirect you to the Slack auth page where you can select the specific team to connect to.
+
 If running the bot using `npm` directly, then the relevant environment variables will need to be exported. See the `.env` file for a list of the required variables.
 
 **Note, you may prefer to use the Social Search Platform project to run all of the components needed more easily. Checkout that repository and review the README file.**
