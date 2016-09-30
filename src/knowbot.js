@@ -7,6 +7,13 @@ const MONGO_DB_URI = process.env.MONGO_DB_URI || 'mongodb://localhost:27017';
 const http = require('http');
 const mongoStorage = require('botkit-storage-mongo')({ mongoUri: MONGO_DB_URI });
 
+// Note, the following allows for manual access to mongo.
+// This is needed to have more control over how to store
+// questions and answers, as using the botkit storage API
+// doesn't really provide a scalable way of storing large
+// amounts of data.
+const mongo = require('mongodb').MongoClient
+
 const config = {
   debug: true,
   storage: mongoStorage
@@ -153,24 +160,20 @@ function forwardAnswerToAsker(bot, message) {
                         var teamId = message.team;
                         console.log(`Persisting question and answer for team '${teamId}'`);
 
-                        controller.storage.teams.get(teamId, (error, data) => {
-                            if (error || data == null) {
-                                console.error(`No existing data, or failed to load team data for '${teamId}'`);
-                                data = { id: teamId };
+                        mongo.connect(MONGO_DB_URI, (error, db) => {
+                            if (error) {
+                                console.error("Failed to connect to MongoDB", error);
+                                return;
                             }
 
-                            if (!Array.isArray(data.questionsanswers))
-                                data.questionsanswers = [];
-
-                            data.questionsanswers.push({
+                            db.collection('questionsanswers').insert({
                                 "question": question,
                                 "answer": answer,
                                 "asked_by": askedBy,
                                 "answered_by": answeredBy
-                            });
-
-                            controller.storage.teams.save(data, (error) => {
-                                if (error) console.error("Failed to persist question & answer pair!", error);
+                            }, (error, result) => {
+                                if (error) console.error("Failed to insert document", error);
+                                db.close();
                             });
                         });
                     }
