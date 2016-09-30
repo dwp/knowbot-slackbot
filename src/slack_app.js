@@ -31,6 +31,8 @@ module.exports = {
         controller.setupWebserver(port, (error, webserver) => {
             handleError(error);
 
+            controller.createWebhookEndpoints(webserver);
+
             controller.createOauthEndpoints(webserver, (error, request ,response) => {
                 if (error) {
                     response.status(500).send('ERROR: ' + error);

@@ -5,6 +5,7 @@ const SOCIAL_SEARCH_API = process.env.SOCIAL_SEARCH_API || 'http://localhost:808
 const MONGO_DB_URI = process.env.MONGO_DB_URI || 'mongodb://localhost:27017';
 
 const http = require('http');
+const uuid = require('node-uuid');
 const mongoStorage = require('botkit-storage-mongo')({ mongoUri: MONGO_DB_URI });
 
 // Note, the following allows for manual access to mongo.
@@ -14,8 +15,13 @@ const mongoStorage = require('botkit-storage-mongo')({ mongoUri: MONGO_DB_URI })
 // amounts of data.
 const mongo = require('mongodb').MongoClient
 
+// in-memory register of answers that will be held until user
+// has confirmed if answer is accepted or rejected.
+const AnswerRegister = {};
+
 const config = {
   debug: true,
+  interactive_replies: true,
   storage: mongoStorage
 };
 
@@ -126,39 +132,60 @@ function forwardQuestionToUsers(bot, message) {
 function forwardAnswerToAsker(bot, message) {
     return function (askedBy, question, answeredBy, answer) {
         bot.startPrivateConversation({user: askedBy}, (error, convo) => {
-            convo.say({
+            var callbackId = uuid.v1();
+            AnswerRegister[callbackId] = {
+                "question": question,
+                "answer": answer,
+                "asked_by": askedBy,
+                "answered_by": answeredBy
+            };
+
+            convo.ask({
                 attachments: [
                     {
                         fallback: `Answer from <@${answeredBy}>`,
                         pretext: "Here's one answer to your question.",
                         author_name: `<@${answeredBy}>`,
-                        text: answer
+                        text: answer + "\n\n Is this answer useful?",
+                        callback_id: callbackId,
+                        actions: [
+                            {
+                                "name":"accept",
+                                "text": "Accept",
+                                "value": "accept",
+                                "type": "button",
+                            },
+                            {
+                                "name":"reject",
+                                "text": "Reject",
+                                "value": "reject",
+                                "type": "button",
+                            }
+                        ]
                     }
                 ]
-            });
-
-            convo.ask('Was this answer helpful?', [
+            }, [
                 {
-                    pattern: bot.utterances.no,
+                    pattern: 'reject',
                     callback: (response, convo) => {
                         convo.say('Oh dear... sorry about that!');
                         convo.next();
-                        // No need to expand this for now... keep the interactions simple
-                        // just to demonstrate the concept. In reality, the bot could ask
-                        // the user to elaborate and go back to the person who answered the
-                        // question. Or it could record how useful the answer was and use that
-                        // information in the future to better gauge the user's knowledge on
-                        // a given topic. Lots of directions this could be taken in.
                     }
                 },
                 {
-                    pattern: bot.utterances.yes,
+                    pattern: 'accept',
                     callback: (response, convo) => {
                         convo.say('Fantastic! Glad I could help.');
                         convo.next();
 
-                        var teamId = message.team;
-                        console.log(`Persisting question and answer for team '${teamId}'`);
+                        console.log(response.callback_id);
+
+                        var answer = AnswerRegister[response.callback_id];
+                        console.log(answer);
+                        if (!answer) {
+                            console.error("Unable to find answer!");
+                            return;
+                        }
 
                         mongo.connect(MONGO_DB_URI, (error, db) => {
                             if (error) {
@@ -166,12 +193,7 @@ function forwardAnswerToAsker(bot, message) {
                                 return;
                             }
 
-                            db.collection('questionsanswers').insert({
-                                "question": question,
-                                "answer": answer,
-                                "asked_by": askedBy,
-                                "answered_by": answeredBy
-                            }, (error, result) => {
+                            db.collection('questionsanswers').insert(answer, (error, result) => {
                                 if (error) console.error("Failed to insert document", error);
                                 db.close();
                             });
@@ -185,7 +207,6 @@ function forwardAnswerToAsker(bot, message) {
     }
 }
 
-
 // Respond to direct messages of 'ping' with a 'pong'
 controller.hears('^ping$', ['direct_message'], (bot, message) => bot.reply(message, 'pong'));
 
@@ -195,3 +216,8 @@ controller.on('direct_message', (bot, message) => {
     console.log(message);
     findUsers(message.team, message.user, message.text, forwardQuestionToUsers(bot, message));
 });
+
+// receive an interactive message to determine if the provided answer was useful (or not)
+// controller.on('interactive_message_callback', (bot, message) => {
+//
+// });

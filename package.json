@@ -1,6 +1,6 @@
 {
   "name": "knowbot",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "A Slack bot that can be asked questions, and if it doesn't know the answer, will find somebody who does!",
   "author": "Steven Bakhtiari",
   "license": "MIT",
@@ -8,7 +8,8 @@
   "dependencies": {
     "botkit": "0.2.2",
     "botkit-storage-mongo": "1.0.4",
-    "mongodb": "2.2.10"
+    "mongodb": "2.2.10",
+    "node-uuid": "latest"
   },
   "devDependencies": {},
   "scripts": {
