@@ -6,6 +6,10 @@ patch:
   'npm:debug:20170905':
     - botkit > node-ews > debug:
         patched: '2018-04-09T07:38:07.783Z'
+    - botkit > node-ews > debug:
+        patched: '2018-04-09T07:39:15.131Z'
   'npm:ms:20170412':
     - botkit > node-ews > debug > ms:
         patched: '2018-04-09T07:38:07.783Z'
+    - botkit > node-ews > debug > ms:
+        patched: '2018-04-09T07:39:15.131Z'
