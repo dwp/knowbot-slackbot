@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "src/knowbot.js",
   "dependencies": {
-    "botkit": "0.2.2",
+    "botkit": "0.5.5",
     "botkit-storage-mongo": "1.0.4",
     "mongodb": "2.2.13",
     "node-uuid": "latest"
