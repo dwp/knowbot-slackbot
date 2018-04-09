@@ -6,14 +6,18 @@
   "license": "MIT",
   "main": "src/knowbot.js",
   "dependencies": {
-    "botkit": "0.6.11",
+    "botkit": "0.5.5",
     "botkit-storage-mongo": "1.0.4",
     "mongodb": "2.2.13",
-    "node-uuid": "latest"
+    "node-uuid": "latest",
+    "snyk": "^1.71.0"
   },
   "devDependencies": {},
   "scripts": {
     "start": "node src/knowbot.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  }
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "snyk-protect": "snyk protect",
+    "prepublish": "npm run snyk-protect"
+  },
+  "snyk": true
 }
